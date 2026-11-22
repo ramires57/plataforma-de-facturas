@@ -1,11 +1,8 @@
 FROM eclipse-temurin:21-jdk AS build
 WORKDIR /app
 COPY src/main/java ./src/main/java
-RUN mkdir -p out && javac --add-modules jdk.httpserver -encoding UTF-8 -d out \
-    src/main/java/pe/senati/facturacion/Factura.java \
-    src/main/java/pe/senati/facturacion/CalculadoraFactura.java \
-    src/main/java/pe/senati/facturacion/PdfFactura.java \
-    src/main/java/pe/senati/facturacion/ServidorFactura.java
+RUN mkdir -p out && find src/main/java -name "*.java" -print > sources.txt && \
+    javac --add-modules jdk.httpserver -encoding UTF-8 -d out @sources.txt
 
 FROM eclipse-temurin:21-jre
 WORKDIR /app
