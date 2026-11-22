@@ -10,21 +10,31 @@ public final class PruebasFactura {
     public static void main(String[] args) {
         exigir(CalculadoraFactura.PRODUCTOS.size() == 20,
                 "El catálogo debe contener 20 componentes.");
-        verificar(1, "27.70", "1.39");
-        verificar(100, "27.70", "138.50");
-        verificar(101, "25.50", "128.78");
-        verificar(250, "25.50", "318.75");
-        verificar(251, "19.50", "244.73");
-        verificar(500, "19.50", "487.50");
-        verificar(501, "13.60", "1022.04");
+        Factura procesador = CalculadoraFactura.calcular(
+                "Cliente", "Procesador (CPU)", 100);
+        Factura grafica = CalculadoraFactura.calcular(
+                "Cliente", "Tarjeta gráfica (GPU)", 100);
+        exigir(!procesador.precioUnitario().equals(grafica.precioUnitario()),
+                "Los componentes deben tener precios unitarios distintos.");
+        exigir(new BigDecimal("650.00").equals(procesador.precioReferencial()),
+                "El procesador debe usar su precio referencial.");
+        exigir(new BigDecimal("1800.00").equals(grafica.precioReferencial()),
+                "La tarjeta gráfica debe usar su precio referencial.");
+        exigir(new BigDecimal("650.00").equals(procesador.precioUnitario()),
+                "Una compra de hasta 100 unidades debe usar el precio base.");
+        exigir(new BigDecimal("598.00").equals(CalculadoraFactura.calcular(
+                "Cliente", "Procesador (CPU)", 101).precioUnitario()),
+                "Una compra de 101 a 250 unidades debe aplicar el factor comercial.");
 
         Factura factura = CalculadoraFactura.calcular(" Ana ", "Procesador (CPU)", 600);
         exigir("Ana".equals(factura.nombreCliente()), "Se debe normalizar el nombre.");
-        exigir(new BigDecimal("6936.00").equals(factura.totalPagar()),
-                "El total para 600 unidades debe ser S/. 6,936.00.");
-        exigir(new BigDecimal("5877.97").equals(factura.subtotal()),
+        exigir(new BigDecimal("319.15").equals(factura.precioUnitario()),
+                "Se debe aplicar la escala comercial de volumen al producto.");
+        exigir(new BigDecimal("162766.50").equals(factura.totalPagar()),
+                "El total debe combinar el precio propio del producto y el descuento.");
+        exigir(new BigDecimal("137937.71").equals(factura.subtotal()),
                 "El subtotal debe extraer correctamente el IGV incluido.");
-        exigir(new BigDecimal("1058.03").equals(factura.igv()),
+        exigir(new BigDecimal("24828.79").equals(factura.igv()),
                 "El IGV debe completar el total sin volver a sumarse.");
 
         String pdf = new String(
@@ -36,7 +46,7 @@ public final class PruebasFactura {
                 "El PDF debe conservar caracteres españoles y escapar paréntesis.");
         exigir(pdf.contains("Tarjeta gr\\341fica \\(GPU\\)"),
                 "El PDF debe incluir el producto seleccionado.");
-        exigir(pdf.contains("S/. 6936.00") && pdf.endsWith("%%EOF\n"),
+        exigir(pdf.contains("S/. 450738.00") && pdf.endsWith("%%EOF\n"),
                 "El PDF debe incluir el total y terminar correctamente.");
 
         for (int cantidadInvalida : new int[]{0, -1}) {
@@ -74,14 +84,6 @@ public final class PruebasFactura {
         }
 
         System.out.println("Pruebas de factura aprobadas.");
-    }
-
-    private static void verificar(int cantidad, String precio, String descuento) {
-        Factura factura = CalculadoraFactura.calcular("Cliente", "Procesador (CPU)", cantidad);
-        exigir(new BigDecimal(precio).equals(factura.precioUnitario()),
-                "Precio unitario incorrecto para " + cantidad + " unidades.");
-        exigir(new BigDecimal(descuento).equals(factura.descuento()),
-                "Descuento incorrecto para " + cantidad + " unidades.");
     }
 
     private static void exigir(boolean condicion, String mensaje) {

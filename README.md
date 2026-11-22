@@ -2,6 +2,8 @@
 
 Aplicación web local para calcular precios por volumen, descuentos y el IGV incluido en los precios. La lógica y el servidor están escritos en Java; la interfaz usa HTML, CSS y JavaScript servido desde el mismo servidor. Incluye un catálogo de 20 componentes de PC, impresión de factura y descarga directa en PDF.
 
+Los componentes tienen precios referenciales propios en soles. La escala por cantidad aplica un ajuste sobre el precio base y conserva descuentos del 5% hasta 500 unidades y del 15% por encima de esa cantidad.
+
 ## Requisitos
 
 - JDK 21 o superior en el `PATH`.

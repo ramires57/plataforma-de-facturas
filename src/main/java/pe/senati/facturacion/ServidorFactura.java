@@ -202,6 +202,7 @@ public final class ServidorFactura {
         return "{"
                 + "\"nombre_cliente\":\"" + escaparJson(factura.nombreCliente()) + "\","
                 + "\"producto\":\"" + escaparJson(factura.producto()) + "\","
+                + "\"precio_referencial\":\"" + factura.precioReferencial().toPlainString() + "\","
                 + "\"cantidad\":" + factura.cantidad() + ","
                 + "\"precio_unitario\":\"" + factura.precioUnitario().toPlainString() + "\","
                 + "\"importe_compra\":\"" + factura.importeCompra().toPlainString() + "\","

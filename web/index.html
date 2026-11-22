@@ -141,6 +141,7 @@
           <div class="invoice-product">
             <span>COMPONENTE SELECCIONADO</span>
             <strong id="invoice-product">—</strong>
+            <small id="invoice-referential">PRECIO REFERENCIAL —</small>
           </div>
           <div class="invoice-units"><span>UNIDADES ADQUIRIDAS</span><strong id="invoice-units">—</strong></div>
           <div class="invoice-divider"></div>
@@ -177,20 +178,20 @@
       <div class="price-table" role="table" aria-label="Precios por cantidad adquirida">
         <div class="price-table-head" role="row">
           <span role="columnheader">UNIDADES</span>
-          <span role="columnheader">PRECIO UNITARIO</span>
+          <span role="columnheader">AJUSTE SOBRE BASE</span>
           <span role="columnheader">DESCUENTO</span>
         </div>
-        <div class="price-row" data-min="1" data-max="100" role="row">
-          <span role="cell"><i>01</i> 1—100</span><strong role="cell">S/ 27.70</strong><span role="cell">5%</span>
+        <div class="price-row" data-min="1" data-max="100" data-factor="1" role="row">
+          <span role="cell"><i>01</i> 1—100</span><strong role="cell">Base</strong><span role="cell">5%</span>
         </div>
-        <div class="price-row" data-min="101" data-max="250" role="row">
-          <span role="cell"><i>02</i> 101—250</span><strong role="cell">S/ 25.50</strong><span role="cell">5%</span>
+        <div class="price-row" data-min="101" data-max="250" data-factor=".92" role="row">
+          <span role="cell"><i>02</i> 101—250</span><strong role="cell">92%</strong><span role="cell">5%</span>
         </div>
-        <div class="price-row" data-min="251" data-max="500" role="row">
-          <span role="cell"><i>03</i> 251—500</span><strong role="cell">S/ 19.50</strong><span role="cell">5%</span>
+        <div class="price-row" data-min="251" data-max="500" data-factor=".704" role="row">
+          <span role="cell"><i>03</i> 251—500</span><strong role="cell">70.4%</strong><span role="cell">5%</span>
         </div>
-        <div class="price-row" data-min="501" data-max="" role="row">
-          <span role="cell"><i>04</i> 501+</span><strong role="cell">S/ 13.60</strong><span role="cell">15%</span>
+        <div class="price-row" data-min="501" data-max="" data-factor=".491" role="row">
+          <span role="cell"><i>04</i> 501+</span><strong role="cell">49.1%</strong><span role="cell">15%</span>
         </div>
       </div>
     </section>

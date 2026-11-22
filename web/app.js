@@ -203,9 +203,12 @@ function updatePriceBand() {
     return;
   }
 
-  const price = activeRow.querySelector("strong").textContent;
+  const adjustment = activeRow.querySelector("strong").textContent;
   const discount = activeRow.querySelector("span:last-child").textContent;
-  priceIndicator.textContent = `${price} por unidad · ${discount} de descuento`;
+  const selectedProduct = productInput.value
+    ? ` · ${productInput.value}`
+    : "";
+  priceIndicator.textContent = `${adjustment} sobre precio referencial${selectedProduct} · ${discount} descuento`;
 }
 
 function showInvoice(invoice) {
@@ -215,6 +218,11 @@ function showInvoice(invoice) {
     `SEN / ${new Date().toLocaleDateString("es-PE").replaceAll("/", ".")}`;
   document.querySelector("#invoice-client").textContent = invoice.nombre_cliente;
   document.querySelector("#invoice-product").textContent = invoice.producto;
+  document.querySelector("#invoice-referential").textContent =
+    `PRECIO REFERENCIAL S/ ${Number(invoice.precio_referencial).toLocaleString("es-PE", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`;
   document.querySelector("#invoice-units").textContent =
     `${invoice.cantidad.toLocaleString("es-PE")} UNIDADES`;
   document.querySelector("#unit-price").textContent = money(invoice.precio_unitario);

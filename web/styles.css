@@ -183,6 +183,7 @@ main { width: min(1120px, calc(100% - 3rem)); margin: 0 auto; }
 .invoice-product { display: grid; gap: .45rem; margin-bottom: 1.1rem; padding: .8rem 0 .9rem; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
 .invoice-product span { color: var(--blue-bright); font: .52rem var(--mono); letter-spacing: .07em; }
 .invoice-product strong { color: #dce8f1; font-size: .88rem; font-weight: 600; }
+.invoice-product small { color: var(--muted); font: .52rem var(--mono); letter-spacing: .025em; }
 .invoice-units { display: flex; justify-content: space-between; padding-bottom: 1rem; color: var(--muted); font-size: .56rem; }
 .invoice-units strong { color: var(--ink); font-weight: 500; }
 .invoice-divider { height: 1px; background: var(--line-strong); }
