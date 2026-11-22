@@ -303,6 +303,7 @@ function showInvoice(invoice) {
     `SEN / ${new Date().toLocaleDateString("es-PE").replaceAll("/", ".")}`;
   document.querySelector("#invoice-client").textContent = invoice.nombre_cliente;
   if (invoice.lineas) {
+    document.querySelector("#invoice-lines-heading").hidden = false;
     document.querySelector("#invoice-product").textContent =
       `${invoice.lineas.length} ${invoice.lineas.length === 1 ? "componente" : "componentes"}`;
     document.querySelector("#invoice-referential").textContent =
@@ -319,6 +320,7 @@ function showInvoice(invoice) {
       invoiceCartLines.append(row);
     });
   } else {
+    document.querySelector("#invoice-lines-heading").hidden = true;
     document.querySelector("#invoice-product").textContent = invoice.producto;
     document.querySelector("#invoice-referential").textContent =
       `PRECIO REFERENCIAL S/ ${Number(invoice.precio_referencial).toLocaleString("es-PE", {
