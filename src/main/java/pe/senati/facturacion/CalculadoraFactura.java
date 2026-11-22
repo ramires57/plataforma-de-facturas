@@ -23,7 +23,7 @@ public final class CalculadoraFactura {
             Map.entry("Ventilador para gabinete", new BigDecimal("65.00")),
             Map.entry("Tarjeta Wi-Fi", new BigDecimal("90.00")),
             Map.entry("Tarjeta de red Ethernet", new BigDecimal("75.00")),
-            Map.entry("Tarjeta de sonido", new BigDecimal("180.00")),
+            Map.entry("Tarjeta de sonido", new BigDecimal("165.00")),
             Map.entry("Capturadora de video", new BigDecimal("350.00")),
             Map.entry("Unidad óptica", new BigDecimal("110.00")),
             Map.entry("Pasta térmica", new BigDecimal("25.00")),
@@ -96,6 +96,13 @@ public final class CalculadoraFactura {
                 subtotal,
                 igv,
                 totalPagar);
+    }
+
+    public static BigDecimal precioReferencial(String producto) {
+        if (!PRECIOS_PRODUCTO.containsKey(producto)) {
+            throw new IllegalArgumentException("Selecciona un componente válido.");
+        }
+        return PRECIOS_PRODUCTO.get(producto);
     }
 
     public static FacturaMultiple calcularMultiple(

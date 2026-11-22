@@ -4,6 +4,8 @@ import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.HashSet;
+import java.util.Set;
 
 public final class PruebasFactura {
     private PruebasFactura() {
@@ -12,6 +14,11 @@ public final class PruebasFactura {
     public static void main(String[] args) {
         exigir(CalculadoraFactura.PRODUCTOS.size() == 20,
                 "El catálogo debe contener 20 componentes.");
+        Set<BigDecimal> precios = new HashSet<>();
+        for (String producto : CalculadoraFactura.PRODUCTOS) {
+            exigir(precios.add(CalculadoraFactura.precioReferencial(producto)),
+                    "Hay dos componentes con el mismo precio referencial.");
+        }
         Map<String, Integer> varios = new LinkedHashMap<>();
         varios.put("Procesador (CPU)", 300);
         varios.put("Memoria RAM", 200);
