@@ -8,6 +8,9 @@ import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Executors;
 
 public final class ServidorFactura {
@@ -57,14 +60,20 @@ public final class ServidorFactura {
 
         String ruta = intercambio.getRequestURI().getPath();
         boolean esPdf = "/api/factura/pdf".equals(ruta);
-        if ("/api/factura".equals(ruta) || esPdf) {
+        boolean esMultiplePdf = "/api/factura/multiple/pdf".equals(ruta);
+        if ("/api/factura".equals(ruta) || esPdf
+                || "/api/factura/multiple".equals(ruta) || esMultiplePdf) {
             if (!"POST".equalsIgnoreCase(intercambio.getRequestMethod())) {
                 intercambio.getResponseHeaders().set("Allow", "POST");
                 responder(intercambio, 405, "application/json; charset=utf-8",
                         "{\"error\":\"Método no permitido.\"}");
                 return;
             }
-            atenderFactura(intercambio, esPdf);
+            if ("/api/factura/multiple".equals(ruta) || esMultiplePdf) {
+                atenderFacturaMultiple(intercambio, esMultiplePdf);
+            } else {
+                atenderFactura(intercambio, esPdf);
+            }
             return;
         }
 
@@ -102,6 +111,42 @@ public final class ServidorFactura {
                 responder(intercambio, 200, "application/pdf", PdfFactura.generar(factura));
             } else {
                 responder(intercambio, 200, "application/json; charset=utf-8", comoJson(factura));
+            }
+        } catch (IllegalArgumentException error) {
+            responder(intercambio, 400, "application/json; charset=utf-8",
+                    "{\"error\":\"" + escaparJson(error.getMessage()) + "\"}");
+        }
+    }
+
+    private static void atenderFacturaMultiple(
+            HttpExchange intercambio, boolean comoPdf) throws IOException {
+        byte[] cuerpo = intercambio.getRequestBody().readNBytes(LIMITE_SOLICITUD + 1);
+        if (cuerpo.length > LIMITE_SOLICITUD) {
+            responder(intercambio, 413, "application/json; charset=utf-8",
+                    "{\"error\":\"La solicitud supera el tamaño permitido.\"}");
+            return;
+        }
+        String tipoContenido = intercambio.getRequestHeaders().getFirst("Content-Type");
+        if (tipoContenido == null
+                || !tipoContenido.toLowerCase().startsWith("application/json")) {
+            responder(intercambio, 415, "application/json; charset=utf-8",
+                    "{\"error\":\"El servicio requiere una solicitud JSON.\"}");
+            return;
+        }
+
+        try {
+            SolicitudMultiple solicitud = leerSolicitudMultiple(
+                    new String(cuerpo, StandardCharsets.UTF_8));
+            FacturaMultiple factura = CalculadoraFactura.calcularMultiple(
+                    solicitud.nombreCliente(), solicitud.lineas());
+            if (comoPdf) {
+                intercambio.getResponseHeaders().set(
+                        "Content-Disposition", "attachment; filename=\"factura-senati.pdf\"");
+                responder(intercambio, 200, "application/pdf",
+                        PdfFactura.generarMultiple(factura));
+            } else {
+                responder(intercambio, 200, "application/json; charset=utf-8",
+                        comoJsonMultiple(factura));
             }
         } catch (IllegalArgumentException error) {
             responder(intercambio, 400, "application/json; charset=utf-8",
@@ -165,6 +210,52 @@ public final class ServidorFactura {
         return new Solicitud(nombreCliente, producto, cantidad);
     }
 
+    private static SolicitudMultiple leerSolicitudMultiple(String json) {
+        CursorJson cursor = new CursorJson(json);
+        cursor.esperar('{');
+        String nombreCliente = null;
+        Map<String, Integer> lineas = null;
+        boolean nombreEncontrado = false;
+        boolean lineasEncontradas = false;
+
+        if (cursor.ver() != '}') {
+            while (true) {
+                String clave = cursor.leerCadena();
+                cursor.esperar(':');
+                switch (clave) {
+                    case "nombre_cliente" -> {
+                        if (nombreEncontrado) {
+                            throw new IllegalArgumentException("El nombre está duplicado.");
+                        }
+                        nombreCliente = cursor.leerCadena();
+                        nombreEncontrado = true;
+                    }
+                    case "lineas" -> {
+                        if (lineasEncontradas) {
+                            throw new IllegalArgumentException("Las líneas están duplicadas.");
+                        }
+                        lineas = cursor.leerLineas();
+                        lineasEncontradas = true;
+                    }
+                    default -> throw new IllegalArgumentException(
+                            "Campo no admitido: " + clave + ".");
+                }
+                if (cursor.ver() == '}') {
+                    break;
+                }
+                cursor.esperar(',');
+            }
+        }
+        cursor.esperar('}');
+        cursor.verificarFin();
+
+        if (!nombreEncontrado || !lineasEncontradas) {
+            throw new IllegalArgumentException(
+                    "Se requieren nombre_cliente y lineas.");
+        }
+        return new SolicitudMultiple(nombreCliente, lineas);
+    }
+
     private static void servirArchivoWeb(HttpExchange intercambio, String ruta) throws IOException {
         String archivo = switch (ruta) {
             case "/", "/index.html" -> "index.html";
@@ -213,6 +304,44 @@ public final class ServidorFactura {
                 + "}";
     }
 
+    private static String comoJsonMultiple(FacturaMultiple factura) {
+        StringBuilder resultado = new StringBuilder("{");
+        resultado.append("\"nombre_cliente\":\"")
+                .append(escaparJson(factura.nombreCliente()))
+                .append("\",\"cantidad_total\":")
+                .append(factura.cantidadTotal())
+                .append(",\"importe_compra\":\"")
+                .append(factura.importeCompra().toPlainString())
+                .append("\",\"descuento\":\"")
+                .append(factura.descuento().toPlainString())
+                .append("\",\"subtotal\":\"")
+                .append(factura.subtotal().toPlainString())
+                .append("\",\"igv\":\"")
+                .append(factura.igv().toPlainString())
+                .append("\",\"total_pagar\":\"")
+                .append(factura.totalPagar().toPlainString())
+                .append("\",\"lineas\":[");
+
+        for (int i = 0; i < factura.lineas().size(); i++) {
+            if (i > 0) {
+                resultado.append(',');
+            }
+            LineaFactura linea = factura.lineas().get(i);
+            resultado.append("{\"producto\":\"")
+                    .append(escaparJson(linea.producto()))
+                    .append("\",\"cantidad\":")
+                    .append(linea.cantidad())
+                    .append(",\"precio_referencial\":\"")
+                    .append(linea.precioReferencial().toPlainString())
+                    .append("\",\"precio_unitario\":\"")
+                    .append(linea.precioUnitario().toPlainString())
+                    .append("\",\"importe_compra\":\"")
+                    .append(linea.importeCompra().toPlainString())
+                    .append("\"}");
+        }
+        return resultado.append("]}").toString();
+    }
+
     private static String escaparJson(String valor) {
         StringBuilder resultado = new StringBuilder();
         for (char caracter : valor.toCharArray()) {
@@ -251,6 +380,10 @@ public final class ServidorFactura {
     }
 
     private record Solicitud(String nombreCliente, String producto, int cantidad) {
+    }
+
+    private record SolicitudMultiple(
+            String nombreCliente, Map<String, Integer> lineas) {
     }
 
     private static final class CursorJson {
@@ -334,6 +467,67 @@ public final class ServidorFactura {
             } catch (NumberFormatException error) {
                 throw new IllegalArgumentException("La cantidad debe ser un entero positivo.");
             }
+        }
+
+        private Map<String, Integer> leerLineas() {
+            Map<String, Integer> lineas = new LinkedHashMap<>();
+            esperar('[');
+            if (ver() == ']') {
+                throw new IllegalArgumentException("Agrega al menos un componente.");
+            }
+            while (true) {
+                esperar('{');
+                String producto = null;
+                Integer cantidad = null;
+                boolean productoEncontrado = false;
+                boolean cantidadEncontrada = false;
+                if (ver() != '}') {
+                    while (true) {
+                        String clave = leerCadena();
+                        esperar(':');
+                        switch (clave) {
+                            case "producto" -> {
+                                if (productoEncontrado) {
+                                    throw new IllegalArgumentException(
+                                            "El producto de una línea está duplicado.");
+                                }
+                                producto = leerCadena();
+                                productoEncontrado = true;
+                            }
+                            case "cantidad" -> {
+                                if (cantidadEncontrada) {
+                                    throw new IllegalArgumentException(
+                                            "La cantidad de una línea está duplicada.");
+                                }
+                                cantidad = leerEntero();
+                                cantidadEncontrada = true;
+                            }
+                            default -> throw new IllegalArgumentException(
+                                    "Campo no admitido en la línea: " + clave + ".");
+                        }
+                        if (ver() == '}') {
+                            break;
+                        }
+                        esperar(',');
+                    }
+                }
+                esperar('}');
+                if (!productoEncontrado || !cantidadEncontrada) {
+                    throw new IllegalArgumentException(
+                            "Cada línea requiere producto y cantidad.");
+                }
+                if (lineas.containsKey(producto)) {
+                    throw new IllegalArgumentException(
+                            "No repitas el mismo componente en una factura.");
+                }
+                lineas.put(producto, cantidad);
+                if (ver() == ']') {
+                    break;
+                }
+                esperar(',');
+            }
+            esperar(']');
+            return lineas;
         }
 
         private char ver() {

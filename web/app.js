@@ -12,6 +12,11 @@ const submitButton = document.querySelector("#submit-button");
 const clearButton = document.querySelector("#clear-button");
 const printButton = document.querySelector("#print-button");
 const downloadPdfButton = document.querySelector("#download-pdf-button");
+const addLineButton = document.querySelector("#add-line-button");
+const cartLines = document.querySelector("#cart-lines");
+const cartEmpty = document.querySelector("#cart-empty");
+const cartCount = document.querySelector("#cart-count");
+const invoiceCartLines = document.querySelector("#invoice-cart-lines");
 const priceIndicator = document.querySelector("#price-indicator");
 const priceRows = [...document.querySelectorAll(".price-row")];
 const emptyInvoice = document.querySelector("#empty-invoice");
@@ -19,6 +24,7 @@ const invoiceContent = document.querySelector("#invoice-content");
 let lastInvoice = null;
 let visibleProducts = [];
 let activeProductIndex = -1;
+let cart = [];
 
 const money = (amount) => `S/ ${Number(amount).toLocaleString("es-PE", {
   minimumFractionDigits: 2,
@@ -211,21 +217,122 @@ function updatePriceBand() {
   priceIndicator.textContent = `${adjustment} sobre precio referencial${selectedProduct} · ${discount} descuento`;
 }
 
+function renderCart() {
+  cartCount.textContent =
+    `${cart.length} ${cart.length === 1 ? "línea" : "líneas"}`;
+  cartLines.replaceChildren();
+  if (cart.length === 0) {
+    const empty = document.createElement("p");
+    empty.className = "cart-empty";
+    empty.id = "cart-empty";
+    empty.textContent = "Aún no hay componentes agregados.";
+    cartLines.append(empty);
+  } else {
+    cart.forEach((line, index) => {
+      const item = document.createElement("div");
+      item.className = "cart-line";
+      const name = document.createElement("div");
+      name.className = "cart-line-name";
+      name.innerHTML = `<strong></strong><span></span>`;
+      name.querySelector("strong").textContent = line.producto;
+      name.querySelector("span").textContent = `${line.cantidad} UNIDADES`;
+      const total = document.createElement("strong");
+      total.className = "cart-line-total";
+      total.textContent = `${line.cantidad} UNID.`;
+      const remove = document.createElement("button");
+      remove.type = "button";
+      remove.className = "remove-line";
+      remove.dataset.index = String(index);
+      remove.setAttribute("aria-label", `Eliminar ${line.producto}`);
+      remove.textContent = "×";
+      item.append(name, total, remove);
+      cartLines.append(item);
+    });
+  }
+}
+
+addLineButton.addEventListener("click", () => {
+  message.classList.remove("is-success");
+  const producto = productInput.value;
+  const cantidad = Number(quantityInput.value);
+  if (!producto) {
+    message.textContent = "Selecciona el componente que quieres agregar.";
+    productSearch.focus();
+    return;
+  }
+  if (!Number.isSafeInteger(cantidad) || cantidad <= 0) {
+    message.textContent = "Ingresa una cantidad entera positiva.";
+    quantityInput.focus();
+    return;
+  }
+  if (cart.some((line) => line.producto === producto)) {
+    message.textContent = "Ese componente ya está agregado. Elimínalo para cambiarlo.";
+    return;
+  }
+
+  cart.push({
+    producto,
+    cantidad,
+  });
+  productInput.value = "";
+  productSearch.value = "";
+  quantityInput.value = "";
+  productSelection.textContent =
+    "Busca y agrega otro componente a la factura.";
+  updatePriceBand();
+  renderCart();
+  message.classList.remove("is-success");
+  message.textContent = "Componente agregado a la factura.";
+  productSearch.focus();
+});
+
+cartLines.addEventListener("click", (event) => {
+  const remove = event.target.closest(".remove-line");
+  if (!remove) {
+    return;
+  }
+  cart.splice(Number(remove.dataset.index), 1);
+  renderCart();
+  message.textContent = "Componente eliminado.";
+});
+
 function showInvoice(invoice) {
   closeProductList();
   lastInvoice = invoice;
   document.querySelector("#invoice-code").textContent =
     `SEN / ${new Date().toLocaleDateString("es-PE").replaceAll("/", ".")}`;
   document.querySelector("#invoice-client").textContent = invoice.nombre_cliente;
-  document.querySelector("#invoice-product").textContent = invoice.producto;
-  document.querySelector("#invoice-referential").textContent =
-    `PRECIO REFERENCIAL S/ ${Number(invoice.precio_referencial).toLocaleString("es-PE", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    })}`;
+  if (invoice.lineas) {
+    document.querySelector("#invoice-product").textContent =
+      `${invoice.lineas.length} ${invoice.lineas.length === 1 ? "componente" : "componentes"}`;
+    document.querySelector("#invoice-referential").textContent =
+      `${invoice.cantidad_total} unidades en total`;
+    invoiceCartLines.replaceChildren();
+    invoice.lineas.forEach((line) => {
+      const row = document.createElement("div");
+      row.className = "invoice-cart-line";
+      const name = document.createElement("span");
+      name.textContent = `${line.cantidad} × ${line.producto}`;
+      const amount = document.createElement("strong");
+      amount.textContent = money(line.importe_compra);
+      row.append(name, amount);
+      invoiceCartLines.append(row);
+    });
+  } else {
+    document.querySelector("#invoice-product").textContent = invoice.producto;
+    document.querySelector("#invoice-referential").textContent =
+      `PRECIO REFERENCIAL S/ ${Number(invoice.precio_referencial).toLocaleString("es-PE", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })}`;
+    invoiceCartLines.replaceChildren();
+  }
   document.querySelector("#invoice-units").textContent =
-    `${invoice.cantidad.toLocaleString("es-PE")} UNIDADES`;
-  document.querySelector("#unit-price").textContent = money(invoice.precio_unitario);
+    invoice.cantidad_total
+      ? `${invoice.cantidad_total.toLocaleString("es-PE")} UNIDADES`
+      : `${invoice.cantidad.toLocaleString("es-PE")} UNIDADES`;
+  document.querySelector("#unit-price").textContent =
+    invoice.lineas ? "VARIOS" : money(invoice.precio_unitario);
   document.querySelector("#purchase-amount").textContent = money(invoice.importe_compra);
   document.querySelector("#discount").textContent = `− ${money(invoice.descuento)}`;
   document.querySelector("#subtotal").textContent = money(invoice.subtotal);
@@ -251,20 +358,15 @@ form.addEventListener("submit", async (event) => {
   message.textContent = "";
 
   const nombre = clientInput.value.trim();
-  const cantidad = Number(quantityInput.value);
   if (!nombre) {
     message.textContent = "Ingresa el nombre del cliente.";
     clientInput.focus();
     return;
   }
-  if (!productInput.value) {
-    message.textContent = "Selecciona el componente que compra el cliente.";
+  if (cart.length === 0) {
+    message.textContent =
+      "Agrega al menos un componente antes de generar la factura.";
     productSearch.focus();
-    return;
-  }
-  if (!Number.isSafeInteger(cantidad) || cantidad <= 0) {
-    message.textContent = "La cantidad debe ser un entero positivo.";
-    quantityInput.focus();
     return;
   }
 
@@ -275,10 +377,12 @@ form.addEventListener("submit", async (event) => {
   try {
     const body = {
       nombre_cliente: nombre,
-      producto: productInput.value,
-      cantidad,
+      lineas: cart.map((line) => ({
+        producto: line.producto,
+        cantidad: line.cantidad,
+      })),
     };
-    const response = await fetch("/api/factura", {
+    const response = await fetch("/api/factura/multiple", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
@@ -302,6 +406,8 @@ form.addEventListener("submit", async (event) => {
 
 clearButton.addEventListener("click", () => {
   form.reset();
+  cart = [];
+  renderCart();
   productSearch.value = "";
   closeProductList();
   productSelection.textContent = "Busca y selecciona el componente que compra el cliente.";
@@ -327,15 +433,27 @@ downloadPdfButton.addEventListener("click", async () => {
   message.textContent = "Preparando el PDF…";
 
   try {
-    const response = await fetch("/api/factura/pdf", {
+    const response = await fetch(
+      lastInvoice.lineas
+        ? "/api/factura/multiple/pdf"
+        : "/api/factura/pdf",
+      {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        nombre_cliente: lastInvoice.nombre_cliente,
-        producto: lastInvoice.producto,
-        cantidad: lastInvoice.cantidad,
-      }),
-    });
+      body: JSON.stringify(lastInvoice.lineas
+        ? {
+            nombre_cliente: lastInvoice.nombre_cliente,
+            lineas: lastInvoice.lineas.map((line) => ({
+              producto: line.producto,
+              cantidad: line.cantidad,
+            })),
+          }
+        : {
+            nombre_cliente: lastInvoice.nombre_cliente,
+            producto: lastInvoice.producto,
+            cantidad: lastInvoice.cantidad,
+          }),
+      });
     if (!response.ok) {
       const error = await response.json();
       throw new Error(error.error || "No fue posible generar el PDF.");

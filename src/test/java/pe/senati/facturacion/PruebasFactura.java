@@ -2,6 +2,8 @@ package pe.senati.facturacion;
 
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 public final class PruebasFactura {
     private PruebasFactura() {
@@ -10,6 +12,17 @@ public final class PruebasFactura {
     public static void main(String[] args) {
         exigir(CalculadoraFactura.PRODUCTOS.size() == 20,
                 "El catálogo debe contener 20 componentes.");
+        Map<String, Integer> varios = new LinkedHashMap<>();
+        varios.put("Procesador (CPU)", 300);
+        varios.put("Memoria RAM", 200);
+        FacturaMultiple multiproducto =
+                CalculadoraFactura.calcularMultiple("Compras SENATI", varios);
+        exigir(multiproducto.lineas().size() == 2,
+                "La factura debe admitir varias líneas.");
+        exigir(multiproducto.cantidadTotal() == 500,
+                "La cantidad total debe incluir todos los componentes.");
+        exigir(new BigDecimal("8131.20").equals(multiproducto.descuento()),
+                "La factura multiproducto debe aplicar el 5% con 500 unidades totales.");
         Factura procesador = CalculadoraFactura.calcular(
                 "Cliente", "Procesador (CPU)", 100);
         Factura grafica = CalculadoraFactura.calcular(

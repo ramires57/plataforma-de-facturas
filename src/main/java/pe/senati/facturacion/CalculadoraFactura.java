@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.List;
 import java.util.Map;
+import java.util.ArrayList;
 
 public final class CalculadoraFactura {
     private static final BigDecimal IGV_FACTOR = new BigDecimal("1.18");
@@ -95,6 +96,68 @@ public final class CalculadoraFactura {
                 subtotal,
                 igv,
                 totalPagar);
+    }
+
+    public static FacturaMultiple calcularMultiple(
+            String nombreCliente, Map<String, Integer> productos) {
+        String nombre = nombreCliente == null ? "" : nombreCliente.trim();
+        if (nombre.isEmpty()) {
+            throw new IllegalArgumentException("Ingresa el nombre del cliente.");
+        }
+        if (nombre.length() > 100) {
+            throw new IllegalArgumentException("El nombre no puede superar 100 caracteres.");
+        }
+        if (productos == null || productos.isEmpty()) {
+            throw new IllegalArgumentException("Agrega al menos un componente.");
+        }
+
+        int cantidadTotal = 0;
+        BigDecimal importeCompra = BigDecimal.ZERO;
+        List<LineaFactura> lineas = new ArrayList<>();
+
+        for (Integer cantidad : productos.values()) {
+            if (cantidad == null || cantidad <= 0) {
+                throw new IllegalArgumentException(
+                        "La cantidad de cada componente debe ser un entero positivo.");
+            }
+            cantidadTotal += cantidad;
+        }
+
+        for (Map.Entry<String, Integer> entrada : productos.entrySet()) {
+            String producto = entrada.getKey();
+            int cantidad = entrada.getValue();
+            if (!PRODUCTOS.contains(producto)) {
+                throw new IllegalArgumentException("Selecciona componentes válidos.");
+            }
+            if (cantidad <= 0) {
+                throw new IllegalArgumentException(
+                        "La cantidad de cada componente debe ser un entero positivo.");
+            }
+
+            BigDecimal precioReferencial = PRECIOS_PRODUCTO.get(producto);
+            BigDecimal precioUnitario = precioPara(producto, cantidadTotal);
+            BigDecimal importeLinea = precioUnitario
+                    .multiply(BigDecimal.valueOf(cantidad))
+                    .setScale(2, RoundingMode.HALF_UP);
+            lineas.add(new LineaFactura(
+                    producto, cantidad, precioReferencial, precioUnitario, importeLinea));
+            importeCompra = importeCompra.add(importeLinea);
+        }
+
+        importeCompra = importeCompra.setScale(2, RoundingMode.HALF_UP);
+        BigDecimal tasaDescuento = cantidadTotal > 500
+                ? new BigDecimal("0.15")
+                : new BigDecimal("0.05");
+        BigDecimal descuento = importeCompra
+                .multiply(tasaDescuento)
+                .setScale(2, RoundingMode.HALF_UP);
+        BigDecimal totalPagar = importeCompra.subtract(descuento);
+        BigDecimal subtotal = totalPagar.divide(IGV_FACTOR, 2, RoundingMode.HALF_UP);
+        BigDecimal igv = totalPagar.subtract(subtotal);
+
+        return new FacturaMultiple(
+                nombre, List.copyOf(lineas), cantidadTotal, importeCompra,
+                descuento, subtotal, igv, totalPagar);
     }
 
     private static BigDecimal precioPara(String producto, int cantidad) {

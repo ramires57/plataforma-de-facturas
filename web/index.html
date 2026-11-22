@@ -102,6 +102,22 @@
           </div>
           <p class="price-indicator" id="price-indicator">El precio unitario se asigna según el volumen.</p>
 
+          <button class="add-line-button" id="add-line-button" type="button">
+            <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+              <path d="M10 4v12M4 10h12" stroke="currentColor" stroke-width="1.5"/>
+            </svg>
+            <span>Agregar producto</span>
+          </button>
+          <div class="cart-section">
+            <div class="cart-heading">
+              <span>COMPONENTES EN LA FACTURA</span>
+              <strong id="cart-count">0 líneas</strong>
+            </div>
+            <div class="cart-lines" id="cart-lines">
+              <p class="cart-empty" id="cart-empty">Aún no hay componentes agregados.</p>
+            </div>
+          </div>
+
           <div class="form-actions">
             <button class="button-primary" id="submit-button" type="submit">
               <span>Generar factura</span>
@@ -145,6 +161,7 @@
           </div>
           <div class="invoice-units"><span>UNIDADES ADQUIRIDAS</span><strong id="invoice-units">—</strong></div>
           <div class="invoice-divider"></div>
+          <div class="invoice-cart-lines" id="invoice-cart-lines"></div>
           <dl class="invoice-lines">
             <div><dt>Precio unitario</dt><dd id="unit-price">—</dd></div>
             <div><dt>Importe de compra</dt><dd id="purchase-amount">—</dd></div>

@@ -45,6 +45,90 @@ public final class PdfFactura {
         return pdf.toByteArray();
     }
 
+    public static byte[] generarMultiple(FacturaMultiple factura) {
+        StringBuilder contenido = new StringBuilder();
+        texto(contenido, 54, 790, 23, true, "SENATI");
+        texto(contenido, 54, 768, 10, false, "FACTURA MAYORISTA");
+        texto(contenido, 430, 788, 8, false, "DOCUMENTO / PEN");
+        texto(contenido, 430, 770, 10, true, LocalDate.now().toString());
+        contenido.append("0.00 0.55 0.80 RG 1.2 w 54 746 m 541 746 l S\n");
+
+        texto(contenido, 54, 718, 8, false, "CLIENTE");
+        List<String> nombre = envolver(factura.nombreCliente(), 62);
+        int y = 697;
+        for (String linea : nombre) {
+            texto(contenido, 54, y, 13, true, linea);
+            y -= 17;
+        }
+
+        texto(contenido, 54, 650, 8, false, "COMPONENTES");
+        y = 628;
+        for (LineaFactura linea : factura.lineas()) {
+            if (y < 170) {
+                break;
+            }
+            texto(contenido, 54, y, 9, true, linea.producto());
+            texto(contenido, 330, y, 9, false,
+                    linea.cantidad() + " x " + soles(linea.precioUnitario()));
+            texto(contenido, 455, y, 9, true, soles(linea.importeCompra()));
+            y -= 30;
+        }
+
+        contenido.append("0.72 0.77 0.81 RG 0.6 w 54 410 m 541 410 l S\n");
+        fila(contenido, 54, 382, "Importe de compra",
+                soles(factura.importeCompra()));
+        fila(contenido, 54, 355, "Descuento aplicado",
+                "- " + soles(factura.descuento()));
+        fila(contenido, 54, 328, "Subtotal", soles(factura.subtotal()));
+        fila(contenido, 54, 301, "IGV (18% incluido)", soles(factura.igv()));
+        contenido.append("0.72 0.77 0.81 RG 0.6 w 54 278 m 541 278 l S\n");
+        texto(contenido, 54, 250, 9, true, "TOTAL A PAGAR");
+        texto(contenido, 385, 246, 18, true, soles(factura.totalPagar()));
+        contenido.append("0.00 0.55 0.80 RG 1.2 w 54 224 m 541 224 l S\n");
+
+        texto(contenido, 54, 193, 8, false,
+                "Cantidad total: " + factura.cantidadTotal()
+                        + " unidades. Precios con IGV incluido.");
+        texto(contenido, 54, 48, 7, false, "SENATI  /  FACTURA MULTIPRODUCTO");
+        texto(contenido, 440, 48, 7, false, "GENERADO LOCALMENTE");
+
+        return generar(new StringContenido(contenido.toString()));
+    }
+
+    private record StringContenido(String texto) {
+    }
+
+    private static byte[] generar(StringContenido fuente) {
+        byte[] stream = fuente.texto().getBytes(StandardCharsets.US_ASCII);
+        ByteArrayOutputStream pdf = new ByteArrayOutputStream();
+        int[] offsets = new int[7];
+        escribir(pdf, "%PDF-1.4\n");
+        objeto(pdf, offsets, 1, "<< /Type /Catalog /Pages 2 0 R >>");
+        objeto(pdf, offsets, 2, "<< /Type /Pages /Kids [3 0 R] /Count 1 >>");
+        objeto(pdf, offsets, 3,
+                "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] "
+                        + "/Resources << /Font << /F1 4 0 R /F2 5 0 R >> >> "
+                        + "/Contents 6 0 R >>");
+        objeto(pdf, offsets, 4,
+                "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica "
+                        + "/Encoding /WinAnsiEncoding >>");
+        objeto(pdf, offsets, 5,
+                "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold "
+                        + "/Encoding /WinAnsiEncoding >>");
+        offsets[6] = pdf.size();
+        escribir(pdf, "6 0 obj\n<< /Length " + stream.length + " >>\nstream\n");
+        pdf.writeBytes(stream);
+        escribir(pdf, "\nendstream\nendobj\n");
+        int inicioXref = pdf.size();
+        escribir(pdf, "xref\n0 7\n0000000000 65535 f \n");
+        for (int i = 1; i < offsets.length; i++) {
+            escribir(pdf, String.format(Locale.ROOT, "%010d 00000 n \n", offsets[i]));
+        }
+        escribir(pdf, "trailer\n<< /Size 7 /Root 1 0 R >>\nstartxref\n"
+                + inicioXref + "\n%%EOF\n");
+        return pdf.toByteArray();
+    }
+
     private static String crearContenido(Factura factura) {
         StringBuilder contenido = new StringBuilder();
         texto(contenido, 54, 790, 23, true, "SENATI");
